@@ -1,5 +1,136 @@
 import React from "react";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useDroppable } from "@dnd-kit/core";
+import { BLOCK_TYPES } from "./blocks/blockTypes";
 
-export default function MidArea() {
-  return <div className="flex-1 h-full overflow-auto">{"mid area"} </div>;
+/* ---------- Block Label Renderer ---------- */
+
+function getBlockText(block) {
+  switch (block.type) {
+    case BLOCK_TYPES.SAY:
+      return `say ${block.text} for ${block.seconds} seconds`;
+
+    case BLOCK_TYPES.THINK:
+      return `think ${block.text} for ${block.seconds} seconds`;
+
+    case BLOCK_TYPES.MOVE:
+      return `move ${block.steps} steps`;
+
+    case BLOCK_TYPES.TURN:
+      return `turn ${block.degrees} degrees`;
+
+    case BLOCK_TYPES.GOTO:
+      return `go to x:${block.x} y:${block.y}`;
+
+    case BLOCK_TYPES.REPEAT:
+      return `repeat ${block.times} times`;
+
+    default:
+      return block.type;
+  }
+}
+
+/* ---------- Sortable Block ---------- */
+
+function SortableBlock({ block }) {
+  const {
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    listeners,
+    attributes,
+  } = useSortable({
+    id: block._id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`px-3 py-2 rounded mb-2 select-none
+        ${isDragging ? "bg-purple-600" : "bg-purple-400"}
+        text-white cursor-grab`}
+    >
+      {getBlockText(block)}
+    </div>
+  );
+}
+
+/* ---------- Recursive Renderer ---------- */
+
+function BlockRenderer({ blocks }) {
+  return (
+    <SortableContext
+      items={blocks.map((b) => b._id)}
+      strategy={verticalListSortingStrategy}
+    >
+      {blocks.map((block) => (
+        <div key={block._id} className="ml-2">
+          <SortableBlock block={block} />
+
+          {block.type === BLOCK_TYPES.REPEAT && <RepeatBody block={block} />}
+        </div>
+      ))}
+    </SortableContext>
+  );
+}
+
+/* ---------- Repeat Body ---------- */
+
+function RepeatBody({ block }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `repeat-body-${block._id}`,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`ml-6 mt-2 mb-2 p-2 rounded border-2 border-dashed
+        ${isOver ? "bg-blue-100 border-blue-400" : "border-gray-300"}`}
+    >
+      {block.body.length === 0 && (
+        <div className="text-xs italic text-gray-400">drop blocks here</div>
+      )}
+
+      <BlockRenderer blocks={block.body} />
+    </div>
+  );
+}
+
+/* ---------- MidArea ---------- */
+
+export default function MidArea({ script, selectedSpriteId }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "script-drop-zone",
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-1 p-4 transition-colors ${
+        isOver ? "bg-blue-50" : "bg-gray-50"
+      }`}
+    >
+      <h3 className="font-bold mb-2">Script for {selectedSpriteId}</h3>
+
+      {script.length === 0 && (
+        <div className="text-gray-400 italic">Drag blocks here</div>
+      )}
+
+      <BlockRenderer blocks={script} />
+    </div>
+  );
 }
