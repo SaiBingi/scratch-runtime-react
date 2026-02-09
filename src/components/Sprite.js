@@ -8,6 +8,7 @@ export default function Sprite({
   x,
   y,
   type,
+  rotation,
   direction,
   message,
   messageType,
@@ -22,6 +23,7 @@ export default function Sprite({
         height: 100,
         transform: `
           translate(-50%, -50%)
+          rotate(${rotation}deg)
           scaleX(${direction === -1 ? -1 : 1})
         `,
         transformOrigin: "center center",

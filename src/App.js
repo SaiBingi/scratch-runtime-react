@@ -29,6 +29,7 @@ export default function App() {
       id: "sprite-1",
       name: "Cat",
       type: "cat",
+      rotation: 0,
       x: 80,
       y: 150,
       direction: 1,
@@ -68,7 +69,8 @@ export default function App() {
         type,
         x: 160,
         y: 140,
-        direction: Math.random() > 0.5 ? 1 : -1,
+        rotation: 0,
+        direction: 1,
       },
     ]);
     setScriptsById((p) => ({ ...p, [id]: [] }));

@@ -25,18 +25,13 @@ export async function executeScript(script = [], spriteId, setSprites) {
 
     /* =============== MOVE =============== */
     if (block.type === BLOCK_TYPES.MOVE) {
-      const totalSteps = Math.abs(Number(block.steps) || 0);
+      const rawSteps = Number(block.steps) || 0;
 
-      // initialize direction ONLY ONCE
-      setSprites((prev) =>
-        prev.map((s) =>
-          s.id === spriteId && s.direction == null
-            ? { ...s, direction: block.steps >= 0 ? 1 : -1 }
-            : s,
-        ),
-      );
+      // how many pixels to move
+      let remaining = Math.abs(rawSteps);
 
-      let remaining = totalSteps;
+      // user intent (+ or -)
+      const inputDir = Math.sign(rawSteps) || 1;
 
       while (remaining > 0) {
         setSprites((prev) => {
@@ -44,26 +39,24 @@ export async function executeScript(script = [], spriteId, setSprites) {
           const self = next.find((s) => s.id === spriteId);
           if (!self) return prev;
 
-          // move using persistent direction
-          self.x += self.direction;
+          // 🔥 FINAL movement direction
+          const moveDir = inputDir * self.direction;
 
-          // collision detection
+          // move
+          self.x += moveDir;
+
+          // collision
           for (const other of next) {
             if (other.id === self.id) continue;
 
             if (isColliding(self, other)) {
-              // rollback
-              self.x -= self.direction;
-
               // reverse BOTH permanently
               self.direction *= -1;
-              other.direction = (other.direction ?? 1) * -1;
+              other.direction *= -1;
 
-              // separate to avoid sticking
-              self.x += self.direction * 6;
-              other.x += other.direction * 6;
-
-              break;
+              // push apart
+              self.x += self.direction * 4;
+              other.x += other.direction * 4;
             }
           }
 
