@@ -17,7 +17,6 @@ function isColliding(a, b) {
 }
 
 export async function executeScript(script = [], spriteId, setSprites) {
-  // defensive: ensure script is an array
   let pc = 0;
 
   while (pc < (script?.length || 0)) {
@@ -26,45 +25,59 @@ export async function executeScript(script = [], spriteId, setSprites) {
     /* =============== MOVE =============== */
     if (block.type === BLOCK_TYPES.MOVE) {
       const rawSteps = Number(block.steps) || 0;
-
-      // how many pixels to move
+      const inputDir = Math.sign(rawSteps) || 1;
       let remaining = Math.abs(rawSteps);
 
-      // user intent (+ or -)
-      const inputDir = Math.sign(rawSteps) || 1;
-
       while (remaining > 0) {
+        let collidedWith = null;
+
         setSprites((prev) => {
           const next = prev.map((s) => ({ ...s }));
           const self = next.find((s) => s.id === spriteId);
           if (!self) return prev;
 
-          // 🔥 FINAL movement direction
+          // angle-based movement
+          const angleRad = (self.rotation * Math.PI) / 180;
           const moveDir = inputDir * self.direction;
 
-          // move
-          self.x += moveDir;
+          const dx = Math.cos(angleRad) * moveDir;
+          const dy = Math.sin(angleRad) * moveDir;
 
-          // collision
+          // attempt move
+          self.x += dx;
+          self.y += dy;
+
+          // detect collision ONLY
           for (const other of next) {
             if (other.id === self.id) continue;
 
             if (isColliding(self, other)) {
-              // reverse BOTH permanently
-              self.direction *= -1;
-              other.direction *= -1;
+              collidedWith = other.id;
 
-              // push apart
-              self.x += self.direction * 4;
-              other.x += other.direction * 4;
+              // rollback movement
+              self.x -= dx;
+              self.y -= dy;
+              break;
             }
           }
 
           return next;
         });
 
+        // resolve collision
+        if (collidedWith) {
+          setSprites((prev) =>
+            prev.map((s) => {
+              if (s.id === spriteId || s.id === collidedWith) {
+                return { ...s, direction: -s.direction };
+              }
+              return s;
+            }),
+          );
+        }
+
         remaining--;
-        await sleep(16);
+        await sleep(10);
       }
 
       pc++;
@@ -83,8 +96,6 @@ export async function executeScript(script = [], spriteId, setSprites) {
       );
 
       pc++;
-      // small pause to show rotation
-      // eslint-disable-next-line no-await-in-loop
       await sleep(60);
       continue;
     }
@@ -123,7 +134,6 @@ export async function executeScript(script = [], spriteId, setSprites) {
       );
 
       const seconds = Number(block.seconds) || 0;
-      // eslint-disable-next-line no-await-in-loop
       await sleep(seconds * 1000);
 
       setSprites((prev) =>
@@ -141,16 +151,13 @@ export async function executeScript(script = [], spriteId, setSprites) {
       const times = Number(block.times) || 0;
       for (let i = 0; i < times; i++) {
         // recursive execution of the body array
-        // eslint-disable-next-line no-await-in-loop
         await executeScript(block.body || [], spriteId, setSprites);
       }
       pc++;
       continue;
     }
 
-    /* =============== FALLBACK =============== */
     pc++;
-    // eslint-disable-next-line no-await-in-loop
     await sleep(60);
   }
 }

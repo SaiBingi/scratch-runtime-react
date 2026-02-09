@@ -10,12 +10,11 @@ import {
   useSensors,
   closestCenter,
 } from "@dnd-kit/core";
-import { expandScript } from "./components/runtime/expandScript";
 import { executeScript } from "./components/runtime/executeScript";
+import { SPRITES } from "./components/constants";
 
 export default function App() {
   /* ---------------- DnD sensors ---------------- */
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -23,12 +22,11 @@ export default function App() {
   );
 
   /* ---------------- Sprites ---------------- */
-
   const [sprites, setSprites] = useState([
     {
-      id: "sprite-1",
-      name: "Cat",
-      type: "cat",
+      id: "sprite-" + Date.now(),
+      name: SPRITES.cat.toUpperCase(),
+      type: SPRITES.cat,
       rotation: 0,
       x: 80,
       y: 150,
@@ -37,7 +35,6 @@ export default function App() {
   ]);
 
   /* ---------------- Scripts per sprite ---------------- */
-
   const [scriptsById, setScriptsById] = useState({
     [sprites[0].id]: [],
   });
@@ -45,7 +42,6 @@ export default function App() {
   const [selectedSpriteId, setSelectedSpriteId] = useState(sprites[0].id);
 
   /* ---------------- Helpers ---------------- */
-
   function findAndRemove(blocks, id) {
     for (let i = 0; i < blocks.length; i++) {
       if (blocks[i]._id === id) {
@@ -65,7 +61,10 @@ export default function App() {
       ...p,
       {
         id,
-        name: type === "cat" ? "Cat" : "Dog",
+        name:
+          type === SPRITES.cat
+            ? SPRITES.cat.toUpperCase()
+            : SPRITES.dog.toUpperCase(),
         type,
         x: 160,
         y: 140,
@@ -91,23 +90,38 @@ export default function App() {
   }
 
   /* ---------------- Play ---------------- */
-
   async function onPlay() {
     if (isPlaying) return;
 
     setIsPlaying(true);
 
-    const tasks = sprites.map((sprite) =>
-      executeScript(scriptsById[sprite.id] || [], sprite.id, setSprites),
+    setSprites((prev) =>
+      prev.map((s) => ({
+        ...s,
+        direction: 1, // Before every play animation starts, set the direction of each sprite to 1
+      })),
     );
 
+    const spriteIds = Object.keys(scriptsById);
+
+    const tasks = spriteIds.map((spriteId) =>
+      executeScript(scriptsById[spriteId] || [], spriteId, setSprites),
+    );
+
+    // Wait until all sprites finish
     await Promise.all(tasks);
+
+    setSprites((prev) =>
+      prev.map((s) => ({
+        ...s,
+        direction: 1, // After every play animation completion, set the direction of each sprite to 1
+      })),
+    );
 
     setIsPlaying(false);
   }
 
   /* ---------------- Render ---------------- */
-
   return (
     <div className="bg-blue-100 pt-6 font-sans h-screen">
       <div className="h-full overflow-hidden flex flex-row">
@@ -172,6 +186,19 @@ export default function App() {
             <MidArea
               script={scriptsById[selectedSpriteId] || []}
               selectedSpriteId={selectedSpriteId}
+              onDeleteBlock={(blockId) => {
+                setScriptsById((prev) => {
+                  const next = structuredClone(prev);
+                  findAndRemove(next[selectedSpriteId], blockId);
+                  return next;
+                });
+              }}
+              onDeleteAll={() => {
+                setScriptsById((prev) => ({
+                  ...prev,
+                  [selectedSpriteId]: [],
+                }));
+              }}
             />
           </DndContext>
         </div>
@@ -192,7 +219,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => addSprite("cat")}
+              onClick={() => addSprite(SPRITES.cat)}
               disabled={isPlaying}
               className={`px-3 py-2 rounded text-white
                 ${
@@ -205,7 +232,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => addSprite("dog")}
+              onClick={() => addSprite(SPRITES.dog)}
               disabled={isPlaying}
               className={`px-3 py-2 rounded text-white
                 ${

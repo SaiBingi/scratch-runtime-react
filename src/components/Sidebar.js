@@ -26,7 +26,7 @@ function parseValueForPayload(key, value) {
 }
 
 function PaletteBlock({ block }) {
-  // keep config as strings for nicer editing UX (user can delete -> "")
+  // keep config as strings
   const [config, setConfig] = useState(() => {
     const res = {};
     // ensure block.default always exists
@@ -38,7 +38,7 @@ function PaletteBlock({ block }) {
     return res;
   });
 
-  // Build payload.default only once per drag (draggable's data)
+  // Build payload.default only once per drag
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: `palette-${block.type}`,
     data: {

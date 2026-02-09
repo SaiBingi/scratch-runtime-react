@@ -7,6 +7,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
 import { BLOCK_TYPES } from "./blocks/blockTypes";
+import { FaTrash } from "react-icons/fa";
 
 /* ---------- Block Label Renderer ---------- */
 
@@ -37,7 +38,7 @@ function getBlockText(block) {
 
 /* ---------- Sortable Block ---------- */
 
-function SortableBlock({ block }) {
+function SortableBlock({ block, onDelete }) {
   const {
     setNodeRef,
     transform,
@@ -45,9 +46,7 @@ function SortableBlock({ block }) {
     isDragging,
     listeners,
     attributes,
-  } = useSortable({
-    id: block._id,
-  });
+  } = useSortable({ id: block._id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -58,20 +57,37 @@ function SortableBlock({ block }) {
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
-      {...attributes}
-      className={`px-3 py-2 rounded mb-2 select-none
+      className={`flex items-center justify-between px-3 py-2 mb-2 rounded
         ${isDragging ? "bg-purple-600" : "bg-purple-400"}
-        text-white cursor-grab`}
+        text-white`}
     >
-      {getBlockText(block)}
+      <div
+        {...listeners}
+        {...attributes}
+        className="flex-1 cursor-grab select-none"
+      >
+        {getBlockText(block)}
+      </div>
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation(); // prevents drag
+          onDelete(block._id);
+        }}
+        className="ml-3 flex items-center justify-center
+                   w-6 h-6 rounded
+                   text-white/80 hover:text-white hover:bg-red-500"
+        title="Delete block"
+      >
+        <FaTrash size={12} />
+      </button>
     </div>
   );
 }
 
 /* ---------- Recursive Renderer ---------- */
 
-function BlockRenderer({ blocks }) {
+function BlockRenderer({ blocks, onDelete }) {
   return (
     <SortableContext
       items={blocks.map((b) => b._id)}
@@ -79,9 +95,11 @@ function BlockRenderer({ blocks }) {
     >
       {blocks.map((block) => (
         <div key={block._id} className="ml-2">
-          <SortableBlock block={block} />
+          <SortableBlock block={block} onDelete={onDelete} />
 
-          {block.type === BLOCK_TYPES.REPEAT && <RepeatBody block={block} />}
+          {block.type === BLOCK_TYPES.REPEAT && (
+            <RepeatBody block={block} onDelete={onDelete} />
+          )}
         </div>
       ))}
     </SortableContext>
@@ -90,7 +108,7 @@ function BlockRenderer({ blocks }) {
 
 /* ---------- Repeat Body ---------- */
 
-function RepeatBody({ block }) {
+function RepeatBody({ block, onDelete }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `repeat-body-${block._id}`,
   });
@@ -105,14 +123,19 @@ function RepeatBody({ block }) {
         <div className="text-xs italic text-gray-400">drop blocks here</div>
       )}
 
-      <BlockRenderer blocks={block.body} />
+      <BlockRenderer blocks={block.body} onDelete={onDelete} />
     </div>
   );
 }
 
 /* ---------- MidArea ---------- */
 
-export default function MidArea({ script, selectedSpriteId }) {
+export default function MidArea({
+  script,
+  selectedSpriteId,
+  onDeleteBlock,
+  onDeleteAll,
+}) {
   const { setNodeRef, isOver } = useDroppable({
     id: "script-drop-zone",
   });
@@ -124,13 +147,22 @@ export default function MidArea({ script, selectedSpriteId }) {
         isOver ? "bg-blue-50" : "bg-gray-50"
       }`}
     >
-      <h3 className="font-bold mb-2">Script for {selectedSpriteId}</h3>
+      <div className="flex items-center mb-2">
+        <h3 className="font-bold">Script for {selectedSpriteId}</h3>
+
+        <button
+          onClick={onDeleteAll}
+          className="ml-auto px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+        >
+          Clear All
+        </button>
+      </div>
 
       {script.length === 0 && (
         <div className="text-gray-400 italic">Drag blocks here</div>
       )}
 
-      <BlockRenderer blocks={script} />
+      <BlockRenderer blocks={script} onDelete={onDeleteBlock} />
     </div>
   );
 }
